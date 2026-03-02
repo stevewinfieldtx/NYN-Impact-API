@@ -112,8 +112,8 @@ Rules:
     }),
   });
 
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content || '';
+  const data: any = await response.json();
+  const text: string = data.choices?.[0]?.message?.content || '';
 
   try {
     return JSON.parse(text.replace(/```json?\s*/g, '').replace(/```/g, '').trim());

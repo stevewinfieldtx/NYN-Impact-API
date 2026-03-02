@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS projects (
   autopsy_data JSONB,
   competitor_research JSONB,
   industry_insights JSONB,
+  github_repo TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
