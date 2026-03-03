@@ -114,14 +114,18 @@ export async function seed() {
   const projectId = project.rows[0].id;
   console.log('✓ Project:', projectId);
 
-  // Create generated site
-  const site = await pool.query(`
-    INSERT INTO generated_sites (project_id, version_label, content_schema, vercel_url, is_selected, is_published)
-    VALUES ($1, 'Version A', $2, 'https://ws-golf-from-tee-to-green-v2.vercel.app', true, true)
-    ON CONFLICT DO NOTHING
-    RETURNING id
-  `, [projectId, JSON.stringify(GOLF_CONTENT_SCHEMA)]);
-  if (site.rows.length > 0) {
+  // Only insert a generated site if none exists for this project yet
+  const existingSite = await pool.query(
+    `SELECT id FROM generated_sites WHERE project_id = $1 LIMIT 1`,
+    [projectId]
+  );
+
+  if (existingSite.rows.length === 0) {
+    const site = await pool.query(`
+      INSERT INTO generated_sites (project_id, version_label, content_schema, vercel_url, is_selected, is_published)
+      VALUES ($1, 'Version A', $2, 'https://ws-golf-from-tee-to-green-v2.vercel.app', true, true)
+      RETURNING id
+    `, [projectId, JSON.stringify(GOLF_CONTENT_SCHEMA)]);
     const siteId = site.rows[0].id;
     console.log('✓ Generated site:', siteId);
     console.log('\n🎯 Site ID for testing:', siteId);
