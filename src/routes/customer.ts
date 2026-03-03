@@ -3,6 +3,36 @@ import { query, queryOne } from '../db';
 
 const router = Router();
 
+// POST /api/customer/:slug/verify — email gate login
+router.post('/:slug/verify', async (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({ error: 'Email is required' });
+      return;
+    }
+
+    const customer = await queryOne<{ id: string; name: string; email: string }>(`
+      SELECT c.id, c.name, c.email
+      FROM customers c
+      JOIN projects p ON p.customer_id = c.id
+      WHERE p.slug = $1 AND LOWER(c.email) = LOWER($2)
+    `, [slug, email.trim()]);
+
+    if (!customer) {
+      res.status(401).json({ error: 'Email not found for this account' });
+      return;
+    }
+
+    res.json({ verified: true, customer: { id: customer.id, name: customer.name } });
+  } catch (err: any) {
+    console.error('Verify error:', err);
+    res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
 // GET /api/customer/:slug/sites — list all sites for a customer
 router.get('/:slug/sites', async (req: Request, res: Response) => {
   try {

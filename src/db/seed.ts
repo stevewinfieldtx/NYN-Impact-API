@@ -1,5 +1,5 @@
-// Seed script — populate initial data for Golf From Tee to Green demo
-// Usage: npm run db:seed
+// Database seed — inserts initial demo data
+// Called from startup.ts on every deploy (safe to re-run via ON CONFLICT DO UPDATE)
 
 import { pool } from './index';
 
@@ -89,33 +89,38 @@ const GOLF_CONTENT_SCHEMA = {
   }
 };
 
-async function seed() {
+export async function seed() {
   console.log('Seeding NYN Impact database...');
-  try {
-    // Create customer
-    const customer = await pool.query(`
-      INSERT INTO customers (name, email, phone)
-      VALUES ('James Cantrell', 'James@GolfFromTeeToGreen.com', '')
-      ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
-      RETURNING id
-    `);
-    const customerId = customer.rows[0].id;
-    console.log('✓ Customer:', customerId);
+  // Create customer
+  const customer = await pool.query(`
+    INSERT INTO customers (name, email, phone)
+    VALUES ('James Cantrell', 'James@GolfFromTeeToGreen.com', '')
+    ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+    RETURNING id
+  `);
+  const customerId = customer.rows[0].id;
+  console.log('✓ Customer:', customerId);
 
-    // Create project
-    const project = await pool.query(`
-      INSERT INTO projects (customer_id, business_name, business_url, slug, status, github_repo)
-      VALUES ($1, 'Golf From Tee to Green', 'https://ws-golf-from-tee-to-green-v2.vercel.app', 'golf-from-tee-to-green', 'active', 'stevewinfieldtx/ws-GolfFromTeeToGreen-v2')
-      ON CONFLICT (slug) DO UPDATE SET 
-        business_name = EXCLUDED.business_name,
-        github_repo = EXCLUDED.github_repo,
-        status = EXCLUDED.status
-      RETURNING id
-    `, [customerId]);
-    const projectId = project.rows[0].id;
-    console.log('✓ Project:', projectId);
+  // Create project
+  const project = await pool.query(`
+    INSERT INTO projects (customer_id, business_name, business_url, slug, status, github_repo)
+    VALUES ($1, 'Golf From Tee to Green', 'https://ws-golf-from-tee-to-green-v2.vercel.app', 'golf-from-tee-to-green', 'active', 'stevewinfieldtx/ws-GolfFromTeeToGreen-v2')
+    ON CONFLICT (slug) DO UPDATE SET 
+      business_name = EXCLUDED.business_name,
+      github_repo = EXCLUDED.github_repo,
+      status = EXCLUDED.status
+    RETURNING id
+  `, [customerId]);
+  const projectId = project.rows[0].id;
+  console.log('✓ Project:', projectId);
 
-    // Create generated site
+  // Only insert a generated site if none exists for this project yet
+  const existingSite = await pool.query(
+    `SELECT id FROM generated_sites WHERE project_id = $1 LIMIT 1`,
+    [projectId]
+  );
+
+  if (existingSite.rows.length === 0) {
     const site = await pool.query(`
       INSERT INTO generated_sites (project_id, version_label, content_schema, vercel_url, is_selected, is_published)
       VALUES ($1, 'Version A', $2, 'https://ws-golf-from-tee-to-green-v2.vercel.app', true, true)
@@ -123,16 +128,10 @@ async function seed() {
     `, [projectId, JSON.stringify(GOLF_CONTENT_SCHEMA)]);
     const siteId = site.rows[0].id;
     console.log('✓ Generated site:', siteId);
-
     console.log('\n🎯 Site ID for testing:', siteId);
     console.log('📍 Customer portal URL: /cus/golf-from-tee-to-green');
     console.log('✏️  Edit URL: /cus/golf-from-tee-to-green/edit?site=' + siteId);
-
-  } catch (err) {
-    console.error('Seed failed:', err);
-  } finally {
-    await pool.end();
+  } else {
+    console.log('✓ Generated site already exists, skipped insert.');
   }
 }
-
-seed();
