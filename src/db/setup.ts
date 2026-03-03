@@ -1,5 +1,5 @@
-// Run this once to set up the database tables
-// Usage: npm run db:setup
+// Database setup — creates tables if they don't exist
+// Called from startup.ts on every deploy (safe to re-run via CREATE TABLE IF NOT EXISTS)
 
 import { pool } from './index';
 
@@ -77,24 +77,16 @@ CREATE INDEX IF NOT EXISTS idx_edits_created ON edit_history(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_images_site ON site_images(site_id);
 `;
 
-async function setup() {
+export async function setup() {
   console.log('Setting up NYN Impact database...');
-  try {
-    await pool.query(schema);
-    console.log('✓ All tables created successfully');
-    
-    // Verify
-    const tables = await pool.query(`
-      SELECT table_name FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      ORDER BY table_name
-    `);
-    console.log('Tables:', tables.rows.map(r => r.table_name).join(', '));
-  } catch (err) {
-    console.error('Setup failed:', err);
-  } finally {
-    await pool.end();
-  }
-}
+  await pool.query(schema);
+  console.log('✓ All tables created successfully');
 
-setup();
+  // Verify
+  const tables = await pool.query(`
+    SELECT table_name FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    ORDER BY table_name
+  `);
+  console.log('Tables:', tables.rows.map((r: { table_name: string }) => r.table_name).join(', '));
+}
