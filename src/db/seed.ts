@@ -105,7 +105,7 @@ export async function seed() {
   const project = await pool.query(`
     INSERT INTO projects (customer_id, business_name, business_url, slug, status, github_repo)
     VALUES ($1, 'Golf From Tee to Green', 'https://ws-golf-from-tee-to-green-v2.vercel.app', 'golf-from-tee-to-green', 'active', 'stevewinfieldtx/ws-GolfFromTeeToGreen-v2')
-    ON CONFLICT (slug) DO UPDATE SET 
+    ON CONFLICT (slug) DO UPDATE SET
       business_name = EXCLUDED.business_name,
       github_repo = EXCLUDED.github_repo,
       status = EXCLUDED.status

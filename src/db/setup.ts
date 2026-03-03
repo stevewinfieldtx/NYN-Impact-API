@@ -84,8 +84,8 @@ export async function setup() {
 
   // Verify
   const tables = await pool.query(`
-    SELECT table_name FROM information_schema.tables 
-    WHERE table_schema = 'public' 
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema = 'public'
     ORDER BY table_name
   `);
   console.log('Tables:', tables.rows.map((r: { table_name: string }) => r.table_name).join(', '));
