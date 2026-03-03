@@ -10,9 +10,13 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '3001');
 
 // ── Middleware ──
+const allowedOrigins = process.env.FRONTEND_URL?.split(',').map(u => u.trim()) || ['http://localhost:3000'];
+console.log('CORS allowed origins:', allowedOrigins);
 app.use(cors({
- origin: process.env.FRONTEND_URL?.split(',').map(u => u.trim()) || ['http://localhost:3000'],
- credentials: true,
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '10mb' }));
 
