@@ -8,7 +8,7 @@ function hashPassword(pw: string): string {
 
 const router = Router();
 
-// POST /api/customer/:slug/verify — email gate login
+// POST /api/customer/:slug/verify — login with email + password
 router.post('/:slug/verify', async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
@@ -31,7 +31,6 @@ router.post('/:slug/verify', async (req: Request, res: Response) => {
       return;
     }
 
-    // Check password
     const inputHash = hashPassword(password);
     if (customer.password_hash !== inputHash) {
       res.status(401).json({ error: 'Invalid email or password' });
@@ -50,8 +49,6 @@ router.get('/:slug/sites', async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
 
-    // Find customer by slug (name slugified) or email
-    // For now, slug is the project slug
     const sites = await query<{
       id: string;
       version_label: string;
@@ -76,7 +73,6 @@ router.get('/:slug/sites', async (req: Request, res: Response) => {
       ORDER BY gs.created_at DESC
     `, [slug]);
 
-    // Get edit counts for each site
     const sitesWithEdits = await Promise.all(sites.map(async (site) => {
       const editResult = await queryOne<{ count: string; last_edited: string | null }>(`
         SELECT COUNT(*) as count, MAX(created_at) as last_edited
