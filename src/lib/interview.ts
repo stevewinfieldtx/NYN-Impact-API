@@ -148,6 +148,105 @@ export async function getInterview(projectId: string): Promise<{
   };
 }
 
+// Skip interview — generate fake data for testing, jump straight to 'processing'
+export async function skipInterview(customerId: string, industry: string): Promise<{ projectId: string }> {
+  const fakeBusinesses: Record<string, { name: string; owner: string; story: string; audience: string; differentiators: string[]; services: string[]; tagline: string; email: string; phone: string }> = {
+    golf: {
+      name: 'Lone Star Golf Academy',
+      owner: 'Mike Richardson',
+      story: "I've been teaching golf for 25 years in the DFW area. Started on the range at a municipal course and worked my way up. I believe every golfer can break 80 if they understand the fundamentals.",
+      audience: 'Weekend golfers aged 35-65 who want to improve their game without gimmicks',
+      differentiators: ['Video analysis included with every lesson', 'On-course playing lessons, not just range work', '25 years of teaching experience'],
+      services: ['Private lessons ($125/hr)', 'Group clinics ($45/person)', 'Junior golf camps ($299/week)', 'Online video review ($49/month)'],
+      tagline: 'Real instruction. Real improvement.',
+      email: 'mike@lonestargolfacademy.com',
+      phone: '(817) 555-0147',
+    },
+    plumbing: {
+      name: 'FlowRight Plumbing Co.',
+      owner: 'Carlos Mendez',
+      story: "Third-generation plumber. My grandfather started the business in 1978. We've always believed in fixing it right the first time, no shortcuts. We serve the entire Dallas-Fort Worth metroplex.",
+      audience: 'Homeowners and small businesses needing reliable, honest plumbing service',
+      differentiators: ['Same-day emergency service', 'Upfront pricing with no surprises', 'Licensed and insured since 1978'],
+      services: ['Emergency repairs', 'Water heater installation', 'Drain cleaning', 'Bathroom & kitchen remodels', 'Commercial plumbing'],
+      tagline: 'Three generations of doing it right.',
+      email: 'carlos@flowrightplumbing.com',
+      phone: '(214) 555-0382',
+    },
+    restaurant: {
+      name: 'Salt & Smoke BBQ',
+      owner: 'Dwayne Peters',
+      story: "I quit my corporate job at 42 to chase my dream. Been smoking brisket since I was 16 — learned from my uncle in East Texas. We opened our first location in 2019 and survived COVID by pivoting to catering.",
+      audience: 'BBQ lovers, families, and corporate catering clients in the Arlington area',
+      differentiators: ['All wood-fired, no gas assist', 'Homemade sides from family recipes', 'Full catering service for events'],
+      services: ['Dine-in', 'Takeout', 'Catering (50-500 people)', 'Meat by the pound', 'Weekly specials'],
+      tagline: 'Low. Slow. Worth the wait.',
+      email: 'dwayne@saltandsmoke.com',
+      phone: '(817) 555-0291',
+    },
+    fitness: {
+      name: 'IronWill Training Studio',
+      owner: 'Jessica Torres',
+      story: "After losing 80 pounds myself, I became a certified trainer to help others transform their lives. I opened IronWill because I wanted a gym that felt welcoming, not intimidating.",
+      audience: 'Adults 30-55 who are starting or restarting their fitness journey',
+      differentiators: ['Personalized programming for every member', 'Small group classes (max 8 people)', 'Nutrition coaching included'],
+      services: ['Personal training ($85/session)', 'Small group classes ($149/month)', 'Nutrition coaching ($99/month)', '12-week transformation program ($997)'],
+      tagline: 'Your comeback starts here.',
+      email: 'jessica@ironwillstudio.com',
+      phone: '(972) 555-0418',
+    },
+    realestate: {
+      name: 'Keystone Realty Group',
+      owner: 'Patricia Wallace',
+      story: "20 years selling homes in North Texas. I've helped over 500 families find their perfect home. I treat every client like family because buying a home is the biggest decision most people ever make.",
+      audience: 'First-time homebuyers and families relocating to the DFW area',
+      differentiators: ['Hyper-local market expertise', 'Full relocation assistance', 'Available 7 days a week'],
+      services: ['Buyer representation', 'Seller listing services', 'Relocation packages', 'Investment property consulting', 'Free home valuations'],
+      tagline: 'Finding your key to home.',
+      email: 'patricia@keystonerealtygroup.com',
+      phone: '(469) 555-0563',
+    },
+  };
+
+  // Pick matching industry or use a generic one
+  const key = industry.toLowerCase().replace(/\s+/g, '');
+  const biz = fakeBusinesses[key] || fakeBusinesses[Object.keys(fakeBusinesses).find(k => key.includes(k)) || 'golf']!;
+
+  const fakeTranscript = `Interviewer: Hi there! Tell me about your business.
+Client: My business is called ${biz.name}. ${biz.story}
+
+Interviewer: Who is your ideal customer?
+Client: ${biz.audience}
+
+Interviewer: What makes you different from competitors?
+Client: ${biz.differentiators.join('. ')}
+
+Interviewer: What services do you offer?
+Client: ${biz.services.join(', ')}
+
+Interviewer: Do you have a tagline or message you want on the site?
+Client: ${biz.tagline}
+
+Interviewer: What's the best way for customers to reach you?
+Client: Email me at ${biz.email} or call ${biz.phone}.
+
+Interviewer: What's your main goal for the website?
+Client: I want to generate leads and build credibility. People should land on my site and immediately trust that I know what I'm doing.`;
+
+  const slug = 'test-' + Date.now();
+  const result = await queryOne<{ id: string }>(
+    `INSERT INTO projects (customer_id, business_name, slug, status, transcript, interview_messages)
+     VALUES ($1, $2, $3, 'processing', $4, '[]'::jsonb)
+     RETURNING id`,
+    [customerId, biz.name, slug, fakeTranscript]
+  );
+
+  if (!result) throw new Error('Failed to create test project');
+
+  console.log(`✓ Test project created: ${result.id} (${biz.name}, industry: ${industry})`);
+  return { projectId: result.id };
+}
+
 // Call OpenRouter AI
 async function callAI(messages: InterviewMessage[]): Promise<string> {
   if (!OPENROUTER_API_KEY) {

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { startInterview, handleMessage, getInterview } from '../lib/interview';
+import { startInterview, handleMessage, getInterview, skipInterview } from '../lib/interview';
 
 const router = Router();
 
@@ -51,6 +51,29 @@ router.post('/message', async (req: Request, res: Response) => {
       return;
     }
     const message = err instanceof Error ? err.message : 'Failed to process message';
+    res.status(500).json({ success: false, error: message });
+  }
+});
+
+// POST /api/interview/skip — Test mode: generate fake interview data from an industry
+// Body: { customerId, industry }
+router.post('/skip', async (req: Request, res: Response) => {
+  try {
+    const { customerId, industry } = req.body;
+
+    if (!customerId || !industry) {
+      res.status(400).json({ error: 'Missing customerId or industry' });
+      return;
+    }
+
+    const result = await skipInterview(customerId, industry);
+    res.json({
+      success: true,
+      projectId: result.projectId,
+    });
+  } catch (err) {
+    console.error('Interview skip error:', err);
+    const message = err instanceof Error ? err.message : 'Failed to skip interview';
     res.status(500).json({ success: false, error: message });
   }
 });
