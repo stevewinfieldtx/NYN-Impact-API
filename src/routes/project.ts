@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { queryOne } from '../db';
-import { generateSiteOptions, getProjectSites, selectSiteOption } from '../lib/generate';
+import { generateSiteOptions, getProjectSites, selectSiteOption, getSiteHTML } from '../lib/generate';
 
 const router = Router();
 
@@ -94,6 +94,25 @@ router.post('/:projectId/select', async (req: Request, res: Response) => {
     console.error('Select error:', err);
     const message = err instanceof Error ? err.message : 'Failed to select site';
     res.status(500).json({ success: false, error: message });
+  }
+});
+
+// GET /api/project/site/:siteId/html — Serve the raw HTML for iframe rendering
+router.get('/site/:siteId/html', async (req: Request, res: Response) => {
+  try {
+    const { siteId } = req.params;
+    const html = await getSiteHTML(siteId);
+
+    if (!html) {
+      res.status(404).send('<html><body><h1>Site not found</h1></body></html>');
+      return;
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('Site HTML fetch error:', err);
+    res.status(500).send('<html><body><h1>Error loading site</h1></body></html>');
   }
 });
 

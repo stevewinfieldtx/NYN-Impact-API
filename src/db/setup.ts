@@ -65,6 +65,19 @@ CREATE TABLE IF NOT EXISTS site_images (
   uploaded_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ── Template Gallery (reusable designs) ──
+CREATE TABLE IF NOT EXISTS site_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  industry TEXT,
+  description TEXT,
+  template_code TEXT NOT NULL,
+  thumbnail_url TEXT,
+  tags TEXT[] DEFAULT '{}',
+  use_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ── Indexes ──
 CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
 CREATE INDEX IF NOT EXISTS idx_projects_customer ON projects(customer_id);
