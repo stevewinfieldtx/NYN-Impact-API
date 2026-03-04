@@ -82,6 +82,12 @@ export async function setup() {
   await pool.query(schema);
   console.log('✓ All tables created successfully');
 
+  // ── Migrations (safe to re-run) ──
+  await pool.query(`
+    ALTER TABLE projects ADD COLUMN IF NOT EXISTS interview_messages JSONB DEFAULT '[]'::jsonb
+  `);
+  console.log('✓ Migrations applied');
+
   // Verify
   const tables = await pool.query(`
     SELECT table_name FROM information_schema.tables

@@ -5,6 +5,7 @@ import contentRoutes from './routes/content';
 import leadRoutes from './routes/lead';
 import customerRoutes from './routes/customer';
 import deployRoutes from './routes/deploy';
+import interviewRoutes from './routes/interview';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001');
@@ -31,6 +32,7 @@ app.use('/api/content', contentRoutes);
 app.use('/api/lead', leadRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/deploy', deployRoutes);
+app.use('/api/interview', interviewRoutes);
 
 // ── Start ──
 app.listen(PORT, '0.0.0.0', () => {
