@@ -1,5 +1,10 @@
 import { Router, Request, Response } from 'express';
+import { createHash } from 'crypto';
 import { query, queryOne } from '../db';
+
+function hashPassword(pw: string): string {
+  return createHash('sha256').update(pw).digest('hex');
+}
 
 const router = Router();
 
@@ -7,22 +12,29 @@ const router = Router();
 router.post('/:slug/verify', async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
-    const { email } = req.body;
+    const { email, password } = req.body;
 
-    if (!email) {
-      res.status(400).json({ error: 'Email is required' });
+    if (!email || !password) {
+      res.status(400).json({ error: 'Email and password are required' });
       return;
     }
 
-    const customer = await queryOne<{ id: string; name: string; email: string }>(`
-      SELECT c.id, c.name, c.email
+    const customer = await queryOne<{ id: string; name: string; email: string; password_hash: string | null }>(`
+      SELECT c.id, c.name, c.email, c.password_hash
       FROM customers c
       JOIN projects p ON p.customer_id = c.id
       WHERE p.slug = $1 AND LOWER(c.email) = LOWER($2)
     `, [slug, email.trim()]);
 
     if (!customer) {
-      res.status(401).json({ error: 'Email not found for this account' });
+      res.status(401).json({ error: 'Invalid email or password' });
+      return;
+    }
+
+    // Check password
+    const inputHash = hashPassword(password);
+    if (customer.password_hash !== inputHash) {
+      res.status(401).json({ error: 'Invalid email or password' });
       return;
     }
 
