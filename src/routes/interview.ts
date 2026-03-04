@@ -22,7 +22,8 @@ router.post('/start', async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error('Interview start error:', err);
-    res.status(500).json({ success: false, error: 'Failed to start interview' });
+    const message = err instanceof Error ? err.message : 'Failed to start interview';
+    res.status(500).json({ success: false, error: message });
   }
 });
 
@@ -49,7 +50,8 @@ router.post('/message', async (req: Request, res: Response) => {
       res.status(400).json({ success: false, error: 'Interview already completed' });
       return;
     }
-    res.status(500).json({ success: false, error: 'Failed to process message' });
+    const message = err instanceof Error ? err.message : 'Failed to process message';
+    res.status(500).json({ success: false, error: message });
   }
 });
 

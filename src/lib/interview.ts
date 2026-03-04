@@ -150,10 +150,21 @@ export async function getInterview(projectId: string): Promise<{
 
 // Call OpenRouter AI
 async function callAI(messages: InterviewMessage[]): Promise<string> {
+  if (!OPENROUTER_API_KEY) {
+    console.error('OPENROUTER_API_KEY is not set!');
+    throw new Error('AI service not configured — missing OPENROUTER_API_KEY');
+  }
+  if (!OPENROUTER_MODEL_ID) {
+    console.error('OPENROUTER_MODEL_ID is not set!');
+    throw new Error('AI service not configured — missing OPENROUTER_MODEL_ID');
+  }
+
   const apiMessages = [
     { role: 'system', content: INTERVIEW_SYSTEM_PROMPT },
     ...messages.map(m => ({ role: m.role, content: m.content })),
   ];
+
+  console.log(`Calling OpenRouter: model=${OPENROUTER_MODEL_ID}, messages=${apiMessages.length}`);
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -169,5 +180,17 @@ async function callAI(messages: InterviewMessage[]): Promise<string> {
   });
 
   const data: any = await response.json();
-  return data.choices?.[0]?.message?.content || "I'm sorry, could you repeat that?";
+
+  if (!response.ok) {
+    console.error('OpenRouter error:', response.status, JSON.stringify(data));
+    throw new Error(`AI request failed (${response.status}): ${data.error?.message || JSON.stringify(data)}`);
+  }
+
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) {
+    console.error('OpenRouter returned empty content:', JSON.stringify(data));
+    throw new Error('AI returned an empty response');
+  }
+
+  return content;
 }
