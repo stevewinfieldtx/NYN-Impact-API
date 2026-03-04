@@ -4,7 +4,7 @@
 import { query, queryOne, execute } from '../db';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY!;
-const OPENROUTER_MODEL_ID = process.env.OPENROUTER_MODEL_ID || 'anthropic/claude-sonnet-4-20250514';
+const OPENROUTER_MODEL_ID = process.env.OPENROUTER_MODEL_ID!;
 
 export interface InterviewMessage {
   role: 'assistant' | 'user';
