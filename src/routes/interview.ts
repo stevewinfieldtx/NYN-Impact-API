@@ -78,6 +78,34 @@ router.post('/skip', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/interview/start-research — kick off background research while interview runs
+router.post('/start-research', async (req: Request, res: Response) => {
+  try {
+    const { businessName, businessUrl, customerId } = req.body;
+    if (!customerId) { res.status(400).json({ error: 'Missing customerId' }); return; }
+
+    // Update the in-progress project with business info
+    await import('../db').then(({ execute }) =>
+      execute(
+        `UPDATE projects SET business_name = $1, business_url = $2 WHERE customer_id = $3 AND status = 'interview' ORDER BY created_at DESC LIMIT 1`,
+        [businessName || 'TBD', businessUrl || null, customerId]
+      )
+    );
+
+    // Get the project id to return
+    const { queryOne } = await import('../db');
+    const project = await queryOne<{ id: string }>(
+      `SELECT id FROM projects WHERE customer_id = $1 AND status = 'interview' ORDER BY created_at DESC LIMIT 1`,
+      [customerId]
+    );
+
+    res.json({ success: true, projectId: project?.id });
+  } catch (err) {
+    console.error('Start research error:', err);
+    res.status(500).json({ success: false, error: 'Research start failed' });
+  }
+});
+
 // GET /api/interview/:projectId — Get interview state (for resuming)
 router.get('/:projectId', async (req: Request, res: Response) => {
   try {

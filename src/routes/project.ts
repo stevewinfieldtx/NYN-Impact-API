@@ -89,7 +89,18 @@ router.post('/:projectId/select', async (req: Request, res: Response) => {
     }
 
     const result = await selectSiteOption(projectId, siteId);
-    res.json(result);
+
+    // Also return customer info so the frontend can auto-session them
+    // without requiring them to log in again
+    const { queryOne } = await import('../db');
+    const customer = await queryOne<{ id: string; name: string }>(`
+      SELECT c.id, c.name
+      FROM customers c
+      JOIN projects p ON p.customer_id = c.id
+      WHERE p.id = $1
+    `, [projectId]);
+
+    res.json({ ...result, customer });
   } catch (err) {
     console.error('Select error:', err);
     const message = err instanceof Error ? err.message : 'Failed to select site';

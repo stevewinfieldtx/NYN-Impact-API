@@ -1,15 +1,25 @@
 import { Router, Request, Response } from 'express';
 import { queryOne, execute } from '../db';
+import { createHash } from 'crypto';
+
+function hashPassword(pw: string): string {
+  return createHash('sha256').update(pw).digest('hex');
+}
 
 const router = Router();
 
 // POST /api/lead — capture a new lead
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, email, phone } = req.body;
+    const { name, email, phone, password } = req.body;
 
-    if (!name || !email || !phone) {
+    if (!name || !email || !phone || !password) {
       res.status(400).json({ error: 'All fields are required' });
+      return;
+    }
+
+    if (password.length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters' });
       return;
     }
 
@@ -25,9 +35,10 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // Create new customer
+    const passwordHash = hashPassword(password);
     const newCustomer = await queryOne<{ id: string }>(
-      'INSERT INTO customers (name, email, phone) VALUES ($1, $2, $3) RETURNING id',
-      [name, email, phone]
+      'INSERT INTO customers (name, email, phone, password_hash) VALUES ($1, $2, $3, $4) RETURNING id',
+      [name, email, phone, passwordHash]
     );
 
     res.json({ id: newCustomer?.id, existing: false });

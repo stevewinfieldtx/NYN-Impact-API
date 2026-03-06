@@ -8,6 +8,43 @@ function hashPassword(pw: string): string {
 
 const router = Router();
 
+// POST /api/customer/lookup — find slug by email + verify password (used by global sign-in page)
+router.post('/lookup', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({ error: 'Email and password are required' });
+      return;
+    }
+
+    const row = await queryOne<{ id: string; name: string; password_hash: string | null; slug: string }>(`
+      SELECT c.id, c.name, c.password_hash, p.slug
+      FROM customers c
+      JOIN projects p ON p.customer_id = c.id
+      WHERE LOWER(c.email) = LOWER($1)
+      ORDER BY p.created_at DESC
+      LIMIT 1
+    `, [email.trim()]);
+
+    if (!row) {
+      res.status(401).json({ error: 'Invalid email or password' });
+      return;
+    }
+
+    const inputHash = hashPassword(password);
+    if (row.password_hash !== inputHash) {
+      res.status(401).json({ error: 'Invalid email or password' });
+      return;
+    }
+
+    res.json({ slug: row.slug, customer: { id: row.id, name: row.name } });
+  } catch (err: any) {
+    console.error('Lookup error:', err);
+    res.status(500).json({ error: 'Sign in failed' });
+  }
+});
+
 // POST /api/customer/:slug/verify — login with email + password
 router.post('/:slug/verify', async (req: Request, res: Response) => {
   try {

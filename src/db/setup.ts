@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS customers (
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   phone TEXT NOT NULL,
+  password_hash TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
