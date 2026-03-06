@@ -99,6 +99,54 @@ export async function setup() {
   await pool.query(`
     ALTER TABLE projects ADD COLUMN IF NOT EXISTS interview_messages JSONB DEFAULT '[]'::jsonb
   `);
+
+  // ── AI Self-Correct columns on generated_sites ──
+  await pool.query(`ALTER TABLE generated_sites ADD COLUMN IF NOT EXISTS ai_selfcorrect_enabled BOOLEAN DEFAULT true`);
+  await pool.query(`ALTER TABLE generated_sites ADD COLUMN IF NOT EXISTS vercel_project_id TEXT`);
+  await pool.query(`ALTER TABLE generated_sites ADD COLUMN IF NOT EXISTS client_email TEXT`);
+  await pool.query(`ALTER TABLE generated_sites ADD COLUMN IF NOT EXISTS last_scan_at TIMESTAMPTZ`);
+  await pool.query(`ALTER TABLE generated_sites ADD COLUMN IF NOT EXISTS scan_status TEXT DEFAULT 'pending'`);
+
+  // ── site_issues table ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS site_issues (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      site_id UUID REFERENCES generated_sites(id) ON DELETE CASCADE,
+      source TEXT NOT NULL CHECK (source IN ('auto_scan','client_submitted','content_request')),
+      status TEXT DEFAULT 'open' CHECK (status IN ('open','diagnosed','fix_ready','applied','dismissed')),
+      severity TEXT CHECK (severity IN ('critical','warning','info')),
+      issue_description TEXT,
+      ai_diagnosis TEXT,
+      ai_fix_recommendation TEXT,
+      client_notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      resolved_at TIMESTAMPTZ
+    )
+  `);
+
+  // ── site_content_snapshots table ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS site_content_snapshots (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      site_id UUID REFERENCES generated_sites(id) ON DELETE CASCADE,
+      page_path TEXT,
+      content_html TEXT,
+      ai_rewrite_suggestion TEXT,
+      status TEXT DEFAULT 'pending' CHECK (status IN ('pending','suggested','approved','deployed')),
+      requested_by TEXT,
+      request_notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // ── AI Self-Correct indexes ──
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_site_issues_site_id ON site_issues(site_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_site_issues_status ON site_issues(status)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_content_snapshots_site_id ON site_content_snapshots(site_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_sites_client_email ON generated_sites(client_email)`);
+
   console.log('✓ Migrations applied');
 
   // Verify

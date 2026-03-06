@@ -7,6 +7,7 @@ import customerRoutes from './routes/customer';
 import deployRoutes from './routes/deploy';
 import interviewRoutes from './routes/interview';
 import projectRoutes from './routes/project';
+import aiSelfCorrectRoutes from './routes/aiSelfCorrect';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001');
@@ -35,6 +36,7 @@ app.use('/api/customer', customerRoutes);
 app.use('/api/deploy', deployRoutes);
 app.use('/api/interview', interviewRoutes);
 app.use('/api/project', projectRoutes);
+app.use('/api/ai-self-correct', aiSelfCorrectRoutes);
 
 // ── Start ──
 app.listen(PORT, '0.0.0.0', () => {
