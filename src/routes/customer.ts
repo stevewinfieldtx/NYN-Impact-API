@@ -4,24 +4,32 @@ import { query, queryOne } from '../db';
 function hashPw(pw: string): string { return createHash('sha256').update(pw).digest('hex'); }
 const router = Router();
 
-// POST /api/customer/lookup — universal login (email + password, returns slug)
+// POST /api/customer/lookup — universal login: email + password → customer info + all projects
 router.post('/lookup', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) { res.status(400).json({ error: 'Email and password required' }); return; }
 
-    const c = await queryOne<{ id: string; name: string; password_hash: string | null; slug: string }>(
-      `SELECT c.id, c.name, c.password_hash, p.slug
-       FROM customers c
-       JOIN projects p ON p.customer_id = c.id
-       WHERE LOWER(c.email) = LOWER($1)
-       ORDER BY p.created_at DESC
-       LIMIT 1`, [email.trim()]);
+    const c = await queryOne<{ id: string; name: string; password_hash: string | null }>(
+      'SELECT id, name, password_hash FROM customers WHERE LOWER(email) = LOWER($1)', [email.trim()]);
 
     if (!c) { res.status(401).json({ error: 'Invalid email or password' }); return; }
     if (c.password_hash !== hashPw(password)) { res.status(401).json({ error: 'Invalid email or password' }); return; }
 
-    res.json({ verified: true, slug: c.slug, customer: { id: c.id, name: c.name } });
+    // Get ALL projects for this customer
+    const projects = await query<{ slug: string; business_name: string; status: string }>( 
+      'SELECT slug, business_name, status FROM projects WHERE customer_id = $1 ORDER BY created_at DESC', [c.id]);
+
+    // Filter out test projects (slugs starting with "test-")
+    const realProjects = projects.filter((p: any) => !p.slug.startsWith('test-'));
+
+    res.json({
+      verified: true,
+      customer: { id: c.id, name: c.name },
+      projects: realProjects,
+      // For backwards compat, return the first real project's slug
+      slug: realProjects.length > 0 ? realProjects[0].slug : (projects.length > 0 ? projects[0].slug : null),
+    });
   } catch (err: any) { console.error('Lookup error:', err); res.status(500).json({ error: 'Login failed' }); }
 });
 
@@ -39,7 +47,7 @@ router.post('/:slug/verify', async (req: Request, res: Response) => {
   } catch (err: any) { console.error('Verify error:', err); res.status(500).json({ error: 'Failed' }); }
 });
 
-// GET /api/customer/:slug/sites — list sites for customer
+// GET /api/customer/:slug/sites — list sites for a specific project
 router.get('/:slug/sites', async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
@@ -51,6 +59,19 @@ router.get('/:slug/sites', async (req: Request, res: Response) => {
         project: { business_name: s.business_name, status: s.status }, edit_count: parseInt(e?.count || '0'), last_edited: e?.last_edited || null };
     }));
     res.json({ sites: result });
+  } catch (err: any) { res.status(500).json({ error: err.message || 'Failed' }); }
+});
+
+// GET /api/customer/by-id/:customerId/projects — get all projects for a customer
+router.get('/by-id/:customerId/projects', async (req: Request, res: Response) => {
+  try {
+    const { customerId } = req.params;
+    const projects = await query<any>(
+      `SELECT p.slug, p.business_name, p.status, p.created_at,
+        (SELECT COUNT(*) FROM generated_sites gs WHERE gs.project_id = p.id) as site_count
+       FROM projects p WHERE p.customer_id = $1 AND p.slug NOT LIKE 'test-%'
+       ORDER BY p.created_at DESC`, [customerId]);
+    res.json({ projects });
   } catch (err: any) { res.status(500).json({ error: err.message || 'Failed' }); }
 });
 
