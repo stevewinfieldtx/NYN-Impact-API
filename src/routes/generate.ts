@@ -25,6 +25,26 @@ RULES:
 7. Remove any <base target="_blank"> tags
 8. Output ONLY the complete HTML with template variables. No markdown fences, no explanation.`;
 
+const DESIGN_FROM_SCRATCH_PROMPT = `You are a world-class web designer who outputs production-ready HTML templates.
+
+TEMPLATE SYNTAX:
+- {{field.path}} for values
+- {{#each array.path}}...{{/each}} for loops
+- {{#if field.path}}...{{/if}} for conditionals
+- {{@index}} for loop index, {{this}} for primitive items
+
+RULES:
+- ONE complete HTML file. All CSS in <style>, all JS in <script>.
+- Google Fonts via <link> are the ONLY external resource.
+- NEVER hardcode business content. Use {{template.syntax}} for ALL text from the schema.
+- Modern typography, rich colors, gradients, generous whitespace.
+- Scroll animations (Intersection Observer), hover effects, animated counters.
+- Sticky nav with background on scroll. Mobile hamburger menu.
+- Fully responsive. Phone as tel: links. Email as mailto: links.
+- No external JS libraries. Pure vanilla JS.
+- Adapt design to business type.
+- Output ONLY HTML. No markdown, no explanation.`;
+
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { siteId } = req.body;
@@ -46,7 +66,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     let existingHtml = '';
 
-    // If there's a live site URL, fetch it
+    // If there's a live site URL, fetch it (READ-ONLY — never modifies the original)
     if (siteUrl) {
       console.log('Fetching existing site: ' + siteUrl);
       try {
@@ -65,10 +85,12 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     let userPrompt: string;
+    let systemPrompt: string;
 
     if (existingHtml && existingHtml.length > 500) {
-      // MODE 1: Convert existing site to template
+      // MODE 1: Convert existing site to template (preserves design)
       console.log('Converting existing site to template...');
+      systemPrompt = CONVERT_PROMPT;
       userPrompt = 'Convert this existing website HTML into a template.\n\n'
         + 'BUSINESS: ' + businessName + '\n\n'
         + 'CONTENT SCHEMA (map the HTML content to these paths):\n'
@@ -79,6 +101,7 @@ router.post('/', async (req: Request, res: Response) => {
     } else {
       // MODE 2: Generate from scratch (no existing site)
       console.log('No existing site found, generating from scratch...');
+      systemPrompt = DESIGN_FROM_SCRATCH_PROMPT;
       userPrompt = 'Generate a stunning website template for: ' + businessName + '\n\n'
         + 'CONTENT SCHEMA:\n'
         + JSON.stringify(site.content_schema, null, 2) + '\n\n'
@@ -94,7 +117,7 @@ router.post('/', async (req: Request, res: Response) => {
       body: JSON.stringify({
         model: WEBSITE_MODEL,
         messages: [
-          { role: 'system', content: existingHtml ? CONVERT_PROMPT : DESIGN_FROM_SCRATCH_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         max_tokens: 32000,
@@ -104,8 +127,8 @@ router.post('/', async (req: Request, res: Response) => {
 
     const data: any = await r.json();
     let html = (data.choices?.[0]?.message?.content || '')
-      .replace(/^\`\`\`html?\s*/i, '')
-      .replace(/\`\`\`\s*$/i, '')
+      .replace(/^```html?\s*/i, '')
+      .replace(/```\s*$/i, '')
       .trim();
 
     if (!html || html.length < 200) {
@@ -128,25 +151,5 @@ router.post('/', async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message || 'Generation failed' });
   }
 });
-
-const DESIGN_FROM_SCRATCH_PROMPT = `You are a world-class web designer who outputs production-ready HTML templates.
-
-TEMPLATE SYNTAX:
-- {{field.path}} for values
-- {{#each array.path}}...{{/each}} for loops
-- {{#if field.path}}...{{/if}} for conditionals
-- {{@index}} for loop index, {{this}} for primitive items
-
-RULES:
-- ONE complete HTML file. All CSS in <style>, all JS in <script>.
-- Google Fonts via <link> are the ONLY external resource.
-- NEVER hardcode business content. Use {{template.syntax}} for ALL text from the schema.
-- Modern typography, rich colors, gradients, generous whitespace.
-- Scroll animations (Intersection Observer), hover effects, animated counters.
-- Sticky nav with background on scroll. Mobile hamburger menu.
-- Fully responsive. Phone as tel: links. Email as mailto: links.
-- No external JS libraries. Pure vanilla JS.
-- Adapt design to business type.
-- Output ONLY HTML. No markdown, no explanation.`;
 
 export default router;
