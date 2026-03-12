@@ -3,3 +3,12 @@ dist/
 .env
 .env.local
 NYN-Impact-API/
+ship-it.mjs
+fix-customers.mjs
+setup-demo.mjs
+check-db.mjs
+run-setup.mjs
+add-passwords.mjs
+apply-template-engine.mjs
+
+*.mjs
